@@ -1,0 +1,34 @@
+Iron Donkey Dictation, built by Iron Donkey.
+
+This app uses the sherpa-onnx 2.0.1 Android library (libsherpa-onnx-jni.so,
+prebuilt release from https://github.com/k2-fsa/sherpa-onnx, Apache License 2.0).
+That library contains these open-source parts:
+
+- ONNX Runtime, Copyright (c) Microsoft Corporation. MIT License.
+- kaldi-native-fbank, Copyright Xiaomi Corporation. Apache License 2.0.
+- kaldi-decoder, Copyright Xiaomi Corporation. Apache License 2.0.
+- OpenFst (as used by kaldi-decoder). Apache License 2.0.
+- simple-sentencepiece. Apache License 2.0.
+- utf8proc. MIT License.
+- nlohmann/json, Copyright (c) Niels Lohmann. MIT License.
+- Eigen. Mozilla Public License 2.0 (source: https://gitlab.com/libeigen/eigen).
+- hclust-cpp. BSD-style license.
+
+The app ships the Silero VAD model (silero_vad.onnx, Silero Team, MIT License)
+to find pauses in speech.
+
+Speech models are not inside the app. You download the ones you pick, from
+Hugging Face (repositories by csukuangfj, who converted them for sherpa-onnx):
+
+- Parakeet v2: NVIDIA parakeet-tdt-0.6b-v2. CC BY 4.0.
+- Parakeet Ultra: Moondream's improved version of NVIDIA parakeet-tdt-0.6b-v3. CC BY 4.0.
+- Canary 180M Flash: NVIDIA canary-180m-flash. CC BY 4.0.
+- Whisper Turbo, Whisper Small, Whisper Base: OpenAI Whisper. MIT License.
+- Qwen3-ASR 0.6B: Alibaba Qwen team. Apache License 2.0.
+- Moonshine Tiny: Moonshine AI (Useful Sensors). MIT License.
+
+The CC BY 4.0 models were converted to ONNX and quantized to 8-bit by the
+sherpa-onnx project; this app does not change them further.
+
+The Java classes in com.k2fsa.sherpa.onnx are a Java port of the sherpa-onnx
+Kotlin API (Apache License 2.0).
