@@ -58,6 +58,11 @@ public final class Models {
 
         /** Builds the recognizer config for files stored in dir. */
         public OfflineRecognizerConfig config(File dir, String language, int threads) {
+            return config(dir, language, threads, "transcribe");
+        }
+
+        /** task is "transcribe", or "translate" for Whisper's built-in translation into English. */
+        public OfflineRecognizerConfig config(File dir, String language, int threads, String task) {
             OfflineRecognizerConfig c = new OfflineRecognizerConfig();
             c.modelConfig.numThreads = threads;
             c.modelConfig.provider = "cpu";
@@ -86,7 +91,7 @@ public final class Models {
                     c.modelConfig.whisper.encoder = f(dir, 0);
                     c.modelConfig.whisper.decoder = f(dir, 1);
                     c.modelConfig.whisper.language = languageChoices == null ? "en" : language;
-                    c.modelConfig.whisper.task = "transcribe";
+                    c.modelConfig.whisper.task = languageChoices == null ? "transcribe" : task;
                     c.modelConfig.tokens = f(dir, 2);
                     break;
                 case QWEN3:

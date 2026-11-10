@@ -35,6 +35,8 @@ public final class Segmenter {
     private final float[] ring;
     private long total = 0;           // samples written to the ring so far
     private long lastEnd = 0;         // end of the previous piece's speech
+    private volatile long lastVoice = 0; // last sample where the voice detector heard speech
+    private volatile boolean heardVoice = false;
 
     public Segmenter(File vadModel, float maxSpeechSec) {
         VadModelConfig c = new VadModelConfig();
@@ -63,6 +65,7 @@ public final class Segmenter {
             if (filled == WINDOW) {
                 push(window, WINDOW);
                 vad.acceptWaveform(window.clone());
+                if (vad.isSpeechDetected()) { lastVoice = total; heardVoice = true; }
                 filled = 0;
                 drain(out);
             }
@@ -113,6 +116,11 @@ public final class Segmenter {
             out.add(new Piece(start, end, x));
         }
     }
+
+    /** Seconds since speech was last heard (since the start when nothing was said yet). */
+    public float silenceSec() { return (total - lastVoice) / (float) TextPipeline.SAMPLE_RATE; }
+
+    public boolean heardVoice() { return heardVoice; }
 
     public void release() { vad.release(); }
 }

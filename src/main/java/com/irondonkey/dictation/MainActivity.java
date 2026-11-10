@@ -39,7 +39,8 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ArrayDeque<String> undo = new ArrayDeque<>();
 
-    private TextView modelLine, status;
+    private TextView modelLine, status, translateLine, counter;
+    private Button translateButton;
     private Button record;
     private EditText box;
     private LinearLayout fileArea;
@@ -74,6 +75,8 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
         modelLine = Ui.body(this, "");
         modelLine.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         Ui.add(col, modelLine, 8);
+        translateLine = Ui.text(this, "", 14, Ui.ACCENT);
+        Ui.add(col, translateLine, 2);
 
         record = new Button(this);
         record.setAllCaps(false);
@@ -112,8 +115,16 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
         box.setTextColor(Ui.TEXT);
         box.setHintTextColor(Ui.DIM);
         box.setHint("Your text appears here");
-        box.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        box.setTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.textSize());
         col.addView(box, Ui.matchWrap(this, 0));
+        counter = Ui.text(this, "", 13, Ui.DIM);
+        Ui.add(col, counter, 2);
+        box.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable e) { updateCounter(); }
+        });
+        updateCounter();
 
         LinearLayout r1 = Ui.row(this);
         r1.addView(Ui.button(this, "Copy", v -> {
@@ -131,6 +142,9 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
         fileButton = Ui.button(this, "Transcribe a file", v -> pickFile());
         Ui.add(col, fileButton, 16);
 
+        translateButton = Ui.button(this, "Translation", v -> startActivity(new Intent(this, TranslationActivity.class)));
+        Ui.add(col, translateButton, 8);
+
         LinearLayout r3 = Ui.row(this);
         r3.addView(Ui.button(this, "Models", v -> startActivity(new Intent(this, ModelsActivity.class))), Ui.weight(1));
         r3.addView(Ui.button(this, "History", v -> startActivity(new Intent(this, HistoryActivity.class))), Ui.weight(1));
@@ -140,6 +154,27 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
         r4.addView(Ui.button(this, "About", v -> startActivity(new Intent(this, AboutActivity.class))), Ui.weight(1));
         Ui.add(col, r4, 0);
         Ui.add(col, Ui.button(this, "Use as a keyboard", v -> startActivity(new Intent(this, KeyboardSetupActivity.class))), 0);
+    }
+
+    /** Word and character count under the text box. */
+    private void updateCounter() {
+        if (counter == null || box == null) return;
+        String t = box.getText().toString();
+        int w = TextExtras.words(t);
+        counter.setText(w + (w == 1 ? " word, " : " words, ") + t.length() + (t.length() == 1 ? " character" : " characters"));
+    }
+
+    /** The translation line and button: hidden for models that hear only one language. */
+    private void updateTranslation() {
+        if (translateLine == null) return;
+        Models.ModelInfo m = Models.get(prefs.selectedModel());
+        boolean multi = Translation.multilingual(m);
+        translateButton.setVisibility(multi ? View.VISIBLE : View.GONE);
+        Translate.Plan pl = multi ? Translate.plan(this, m) : null;
+        translateLine.setVisibility(pl != null ? View.VISIBLE : View.GONE);
+        if (pl != null) translateLine.setText(Translate.describe(pl));
+        translateButton.setText(pl != null ? "Translation: on" : "Translation: off");
+        if (box != null) box.setTextSize(TypedValue.COMPLEX_UNIT_SP, prefs.textSize());
     }
 
     @Override
@@ -170,6 +205,7 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
         super.onStart();
         if (box == null) return;
         visible = true;
+        updateTranslation();
         Hub.addListener(this);
         DownloadService.addListener(this);
         em.addListener(this);

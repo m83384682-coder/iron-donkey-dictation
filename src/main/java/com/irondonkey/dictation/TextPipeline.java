@@ -126,6 +126,15 @@ public final class TextPipeline {
         /** Turn spoken web addresses and emails into real ones in text(). */
         public Assembler withLinks(boolean on) { links = on; return this; }
 
+        private boolean commands = false;
+        private java.util.List<TextExtras.Rule> rules = null;
+
+        /** Turn "new line", "comma" and other spoken commands into the real thing in text(). */
+        public Assembler withCommands(boolean on) { commands = on; return this; }
+
+        /** Apply the user's word replacements in text(). */
+        public Assembler withReplacements(java.util.List<TextExtras.Rule> r) { rules = r; return this; }
+
         public Assembler(boolean paragraphs, boolean stripLeadingStop) {
             this(paragraphs, stripLeadingStop, 2.0f);
         }
@@ -159,7 +168,10 @@ public final class TextPipeline {
 
         public synchronized String text() {
             String t = out.toString();
-            return links ? LinkCleaner.clean(t) : t;
+            if (links) t = LinkCleaner.clean(t);
+            if (commands) t = TextExtras.applyCommands(t);
+            if (rules != null && !rules.isEmpty()) t = TextExtras.applyReplacements(t, rules);
+            return t;
         }
     }
 

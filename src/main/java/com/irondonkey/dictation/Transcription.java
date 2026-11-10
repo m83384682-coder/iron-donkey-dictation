@@ -62,6 +62,11 @@ public final class Transcription {
 
     public long samplesFed() { return fed; }
 
+    /** Seconds of silence at the end of what was fed so far, for stopping by itself. */
+    public float silenceSec() { return segmenter.silenceSec(); }
+
+    public boolean heardVoice() { return segmenter.heardVoice(); }
+
     private void enqueue(List<Segmenter.Piece> segs) {
         for (Segmenter.Piece s : segs) {
             queued++;

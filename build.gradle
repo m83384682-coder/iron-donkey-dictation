@@ -18,17 +18,17 @@ android {
         applicationId = "com.irondonkey.dictation"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
-    // One APK per chip type, so each stays under 10 MB.
+    // One APK per chip type, plus a universal APK that works on every phone.
     splits {
         abi {
             enable = true
             reset()
-            include "arm64-v8a", "armeabi-v7a"
-            universalApk = false
+            include "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+            universalApk = true
         }
     }
 
@@ -46,7 +46,7 @@ android {
 
     packaging {
         jniLibs {
-            // Store the native library compressed so the APK stays under 10 MB.
+            // Store the native library compressed so the download stays small.
             useLegacyPackaging = true
         }
         resources {
@@ -63,4 +63,10 @@ android {
         abortOnError = false
         checkReleaseBuilds = false
     }
+}
+
+dependencies {
+    // Offline translation (models downloaded in the app) and language detection, by Google ML Kit.
+    implementation 'com.google.mlkit:translate:17.0.3'
+    implementation 'com.google.mlkit:language-id:17.0.6'
 }

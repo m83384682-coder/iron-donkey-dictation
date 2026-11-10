@@ -66,6 +66,7 @@
         <activity android:name=".AboutActivity" android:exported="false" />
         <activity android:name=".LicenseActivity" android:exported="false" />
         <activity android:name=".KeyboardSetupActivity" android:exported="false" />
+        <activity android:name=".TranslationActivity" android:exported="false" />
 
         <service
             android:name=".DonkeyKeyboard"

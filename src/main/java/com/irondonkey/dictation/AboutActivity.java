@@ -13,8 +13,8 @@ public class AboutActivity extends Activity {
         col.addView(Ui.heading(this, "Iron Donkey Dictation"));
         col.addView(Ui.text(this, "Built by Iron Donkey", 18, Ui.ACCENT));
         col.addView(Ui.body(this, "Version " + BuildConfig.VERSION_NAME));
-        Ui.add(col, Ui.body(this, "Offline speech to text. The internet is only used to download models; "
-                + "after that, everything happens on your phone."), 8);
+        Ui.add(col, Ui.body(this, "Offline speech to text. The internet is only used to download models and translation files, "
+                + "and for the online translator if you turn it on; everything else happens on your phone."), 8);
 
         col.addView(Ui.subheading(this, "Speech models"));
         for (Models.ModelInfo m : Models.ALL) col.addView(Ui.body(this, m.name + ": " + m.license + "."));
@@ -25,6 +25,8 @@ public class AboutActivity extends Activity {
         col.addView(Ui.body(this, "ONNX Runtime by Microsoft. MIT License."));
         col.addView(Ui.body(this, "Silero VAD by the Silero Team, used to find pauses. MIT License."));
         col.addView(Ui.body(this, "kaldi-native-fbank, kaldi-decoder, OpenFst, simple-sentencepiece, utf8proc, nlohmann/json, Eigen and hclust-cpp, inside sherpa-onnx."));
+        col.addView(Ui.body(this, "Google ML Kit Translation and Language ID, for offline translation. Free to use under the ML Kit Terms of Service; its open-source parts are listed in Android's open-source notices."));
+        col.addView(Ui.body(this, "Online translation, when you choose it, uses Google Cloud Translation with your own API key."));
 
         Ui.add(col, Ui.button(this, "Read the license texts", v -> startActivity(new Intent(this, LicenseActivity.class))), 16);
     }

@@ -12,6 +12,7 @@ public final class Engine {
     public final File dir;
     public final int threads;
     private volatile String language;
+    private volatile String translateTo;   // the model translates by itself into this language, or null
     private String appliedLanguage;
     private OfflineRecognizer rec;
 
@@ -21,7 +22,7 @@ public final class Engine {
         this.threads = threads;
         this.language = language == null ? model.defaultLanguage() : language;
         this.rec = new OfflineRecognizer(model.config(dir, this.language, threads));
-        this.appliedLanguage = this.language;
+        this.appliedLanguage = this.language + "|transcribe";
     }
 
     public void setLanguage(String lang) {
@@ -30,20 +31,30 @@ public final class Engine {
 
     public String language() { return language; }
 
+    /** Let the model translate by itself while it listens (Whisper into English, Canary between en/es/de/fr). Null turns it off. */
+    public void setTranslateTo(String target) { this.translateTo = target == null || target.isEmpty() ? null : target; }
+
+    public String translateTo() { return translateTo; }
+
     /** Decodes 16 kHz mono samples and returns the raw model text. */
     public synchronized String decode(float[] samples) {
         if (rec == null) throw new IllegalStateException("Model was unloaded");
         String lang = language;
-        if (model.type == Models.Type.WHISPER && !lang.equals(appliedLanguage)) {
-            rec.setConfig(model.config(dir, lang, threads));
-            appliedLanguage = lang;
+        String target = translateTo;
+        if (model.type == Models.Type.WHISPER) {
+            String task = target != null ? "translate" : "transcribe";
+            String key = lang + "|" + task;
+            if (!key.equals(appliedLanguage)) {
+                rec.setConfig(model.config(dir, lang, threads, task));
+                appliedLanguage = key;
+            }
         }
         OfflineStream s = rec.createStream();
         try {
             if (model.type == Models.Type.CANARY) {
                 String l = lang.isEmpty() ? "en" : lang;
                 s.setOption("src_lang", l);
-                s.setOption("tgt_lang", l);
+                s.setOption("tgt_lang", target != null ? target : l);
             } else if (model.type == Models.Type.QWEN3 && !lang.isEmpty()) {
                 s.setOption("language", lang);
             }

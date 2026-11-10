@@ -125,7 +125,7 @@ public class FileService extends Service {
             String modelName = m == null ? "" : m.name;
             File vad = ModelStore.vadModel(this);
             float maxPiece = m != null && m.isUrdu(prefs.language(m)) ? Urdu.MAX_PIECE_SEC : 20f;
-            Transcription t = new Transcription(em, vad, maxPiece, new TextPipeline.Assembler(prefs.paragraphs(), false).withLinks(prefs.cleanLinks()));
+            Transcription t = new Transcription(em, vad, maxPiece, prefs.fileAssembler());
             active = t;
             t.setMaxQueue(4);
 
@@ -225,6 +225,11 @@ public class FileService extends Service {
                 Hub.message(TextPipeline.NO_SPEECH);
                 Hub.announce(this, TextPipeline.NO_SPEECH);
             } else {
+                Translate.Plan plan = Translate.plan(this, m);
+                if (plan != null && !Translation.ENGINE_MODEL.equals(plan.engine)) {
+                    Hub.message("Translating to " + plan.toName() + "...");
+                    text = Translate.finish(this, plan, text, Hub::message);
+                }
                 setProgress(100);
                 Hub.deliver(this, text, modelName, name);
             }

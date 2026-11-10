@@ -71,9 +71,11 @@ public final class EngineManager implements Transcription.EngineSource {
         }
         int threads = prefs.threads();
         String lang = prefs.language(m);
+        String target = Translate.modelTarget(app, m);
         synchronized (lock) {
             if (engine != null && engine.model == m && engine.threads == threads) {
                 engine.setLanguage(lang);
+                engine.setTranslateTo(target);
                 return;
             }
             if (state == State.LOADING && stateModel == m) return;
@@ -87,6 +89,7 @@ public final class EngineManager implements Transcription.EngineSource {
             releaseEngine();
             try {
                 Engine e = new Engine(m, ModelStore.dir(app, m), lang, threads);
+                e.setTranslateTo(Translate.modelTarget(app, m));
                 boolean stale;
                 synchronized (lock) {
                     stale = gen != generation;
@@ -104,7 +107,10 @@ public final class EngineManager implements Transcription.EngineSource {
     public void languageChanged() {
         Models.ModelInfo m = Models.get(prefs.selectedModel());
         synchronized (lock) {
-            if (engine != null && m != null && engine.model == m) engine.setLanguage(prefs.language(m));
+            if (engine != null && m != null && engine.model == m) {
+                engine.setLanguage(prefs.language(m));
+                engine.setTranslateTo(Translate.modelTarget(app, m));
+            }
         }
     }
 

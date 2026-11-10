@@ -78,13 +78,21 @@ public class RecordService extends Service {
         em.ensureLoaded();
         Transcription t = null;
         String modelName = "";
+        Models.ModelInfo m = Models.get(prefs.selectedModel());
+        boolean[] autoStopped = {false};
         try {
-            Models.ModelInfo m = Models.get(prefs.selectedModel());
             modelName = m == null ? "" : m.name;
             File vad = ModelStore.vadModel(this);
             float maxPiece = m != null && m.isUrdu(prefs.language(m)) ? Urdu.MAX_PIECE_SEC : 20f;
             t = new Transcription(em, vad, maxPiece, prefs.assembler());
-            Mic.capture(this, t, () -> stopRequested);
+            final Transcription tt = t;
+            final int auto = prefs.autoStopSec();
+            Mic.capture(this, t, () -> {
+                if (stopRequested) return true;
+                if (auto > 0 && tt.silenceSec() >= auto) { autoStopped[0] = true; return true; }
+                return false;
+            });
+            if (autoStopped[0]) Hub.message("Stopped after " + auto + " seconds of silence.");
         } catch (Exception e) {
             Hub.message("Recording stopped: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
             stopRequested = true;
@@ -100,6 +108,11 @@ public class RecordService extends Service {
         try {
             if (t != null) {
                 String text = t.finish();
+                Translate.Plan plan = Translate.plan(this, m);
+                if (!text.isEmpty() && plan != null && !Translation.ENGINE_MODEL.equals(plan.engine)) {
+                    Hub.message("Translating to " + plan.toName() + "...");
+                    text = Translate.finish(this, plan, text, Hub::message);
+                }
                 if (text.isEmpty()) {
                     Hub.message(TextPipeline.NO_SPEECH);
                     Hub.announce(this, TextPipeline.NO_SPEECH);

@@ -2,7 +2,7 @@
 
 **Built by Iron Donkey.** Offline speech-to-text for Android, plus a keyboard with a big voice typing button.
 
-You talk, your phone writes it down. After you download a speech model, everything happens on your phone: no account, no cloud, no audio leaving the device. The internet is only used to download models.
+You talk, your phone writes it down. After you download a speech model, everything happens on your phone: no account, no cloud, no audio leaving the device. The internet is only used to download models and translation files, and for the online translator if you choose to turn it on.
 
 [**Download the latest APK**](https://github.com/m83384682-coder/iron-donkey-dictation/releases/latest) · Android 7.0 or newer
 
@@ -40,7 +40,11 @@ On the bright side, "Iron Donkey Dictation" was not taken.
 - **Iron Donkey Keyboard.** A full keyboard with a large voice typing button at the top, so you can dictate into any app.
 - **8 speech models to choose from**, from a tiny 44 MB English model to big multilingual ones. Download only the ones you want.
 - **Spoken links and emails get written properly.** "https colon slash slash www dot google dot com" becomes `https://www.google.com`.
-- **Fully offline after setup.**
+- **Translation (new in 1.2).** Speak one language, get text in another. Off by default, set separately for each model, and only shown for models that know more than one language.
+- **Push to talk in the keyboard (new in 1.2).** Hold the voice typing button to talk, let go to type.
+- **A better keyboard (new in 1.2).** Accents and extra symbols on long press, cursor arrows, Select all, Copy and Paste, double space for a period, and more TalkBack feedback.
+- **Handy extras (new in 1.2).** Spoken commands ("new line", "comma"), your own word replacements, stop by itself after silence, a word counter and text size.
+- **Fully offline after setup**, unless you pick the online translator.
 
 ---
 
@@ -111,9 +115,47 @@ Spoken web addresses and emails are written out as real ones:
 
 Paths and dashes work too. Normal sentences like "the dot com era" or "to be honest, at home" are left alone. It's on by default and can be turned off in Settings. It can still get it wrong when you say "dot" right before an ending like "com" in a normal sentence.
 
+Since 1.2 it also understands the punctuation and capitals Whisper adds inside spoken links (see below).
+
 Stutters are not cleaned up: what you say is what you get.
 
-### 9. Urdu (experimental)
+### 9. Translation (new in 1.2)
+
+Speak in one language and get the text in another. It works everywhere the app writes text: recording, file transcription, and voice typing in the keyboard.
+
+- **Off by default.** Turn it on with the **Translation** button on the main screen, in Settings, or with the **Translate** key in the keyboard's tool row.
+- **Only for models that know more than one language:** Parakeet Ultra, Canary, Qwen3, Whisper Small and Whisper Turbo. For the English-only models (Parakeet v2, Whisper Base, Moonshine Tiny) the button and the key are hidden.
+- **Every model keeps its own settings.** Turn it on for Whisper Small with Urdu to English, switch to Canary with English to German, and switch back: each one remembers what you set.
+- **You choose** the language you speak (Auto, or a specific one; for most models this is the same as the model's Language setting) and the language to translate into (59 languages).
+
+There are three translators, and the app picks the best one by itself unless you choose:
+
+| Translator | When it's used | Internet |
+|---|---|---|
+| **The speech model itself** | Whisper Small into English, and Canary between English and Spanish, German or French. It translates while it listens, with nothing extra to download. | No |
+| **Offline translator** (Google ML Kit) | Any other pair. Each language is a one-time download of about 30 MB, then it works with no internet. There's a button to download the files ahead of time and a list to delete them. | Only for the one-time download |
+| **Online translator** (Google Cloud Translation) | Only if you choose it. It needs your own Google Cloud API key with the Cloud Translation API turned on, kept only on your phone. | Yes: your text is sent to Google |
+
+Whisper Turbo was not trained to translate, so it uses the offline translator. Web addresses, emails and line breaks are never sent to a translator; they stay exactly as they were. You can also keep the original words under the translation. If translating fails, you get the original text and a message saying why.
+
+### 10. Keyboard improvements (new in 1.2)
+
+- **Push to talk:** turn it on in Settings, under Keyboard. Hold the voice typing button to talk and let go to type. With TalkBack, double tap and hold. A press that's too short to say anything types nothing and tells you to hold it. Tap to start and tap Stop is still the default.
+- **Accents and extra symbols:** hold a letter for its accents (hold e for è é ê ë...), hold a number for its symbol and fractions, hold the period for more punctuation, and hold $ for other currencies. They show in a row above the keys, and TalkBack reads them all out. TalkBack also tells you that a key has more on double tap and hold.
+- **Tool row:** cursor left and right (hold for the start or end of the text), Select all, Copy, Paste, and Translate. TalkBack says the character the cursor moved past. You can hide the row in Settings.
+- **Two spaces type a period**, like other keyboards (can be turned off).
+- **A small vibration on key presses** (can be turned off).
+
+### 11. Other new extras in 1.2
+
+- **Spoken commands** (off by default): say "new line", "new paragraph", "comma", "period" or "full stop", "question mark", "exclamation mark", "colon" or "semicolon" and get the real thing. The next sentence starts with a capital.
+- **Word replacements:** your own list, one per line, like `iron donkey = Iron Donkey` or `btw = by the way`. Whole words only, capitals don't matter.
+- **Stop by itself after silence:** never (default), or after 3, 5, 10 or 20 seconds of silence.
+- **Word and character counter** under the text box.
+- **Text size** for the text box: small, normal, large or extra large.
+- **Link cleanup understands Whisper's punctuation.** Whisper likes to write "https colon slash slash www. My website dot com", with a period and a capital after "www". That now becomes `https://www.mywebsite.com`, and so do "https: www...", "https/www..." and addresses said letter by letter ("H T T P S colon slash slash W W W dot ..."). A period the model writes after ".com" stays as the end of the sentence.
+
+### 12. Urdu (experimental)
 
 Urdu works with the Whisper models, but it's rough. In tests on 20 Urdu recordings, Whisper Small got about 38% of letters wrong and Whisper Turbo about 49%, so **Whisper Small is the better pick for Urdu**. When Urdu is selected, the app uses shorter 10-second pieces plus the loop filter, and shows a warning to expect fixing the text by hand.
 
@@ -159,22 +201,34 @@ All 8 models were run on a computer with the app's own text pipeline and the sam
 
 Every model handled the 5-minute file, at 5.3% to 14.1% errors.
 
+### Tests for 1.2
+
+Run the same way, with the app's own code and sherpa-onnx 2.0.1, on new spoken test clips:
+
+- **Links, emails and spoken commands:** on clips saying a link, an email and a short letter with spoken commands, all 8 models got the email right except Moonshine Tiny, which wrote "John dotsmith@yahoo.com". Six models wrote both links exactly right. Qwen3 wrote both as links too, but heard "http" instead of "https" in one. Whisper Small stopped transcribing at the letter-by-letter "H T T P S", so its text had no link to fix. "New line", "new paragraph", "period" and "exclamation mark" worked on all 8; "comma" was misheard by five models (as "come on", "common", "Kama" and so on).
+- **Model translation:** Canary turned two English sentences into correct German, Spanish and French. Whisper Small translated 5 Urdu recordings into English at about 3 seconds per recording on the test computer; the meaning came through only roughly, and sometimes not at all, so treat Urdu translation as experimental too.
+- **Offline and online translators:** these use Google ML Kit and Google Cloud, which only run on a phone, so they weren't run on the computer. The part of the app that keeps links, emails and line breaks away from the translator was tested.
+- 73 small checks of the text pipeline passed, including the Whisper link fix, normal sentences that must stay as they were ("the dot com era", "It was late. My website was down."), stutters left alone, spoken commands, replacements, and which translator each model uses.
+
 ---
 
 ## Install
 
 1. Go to the [latest release](https://github.com/m83384682-coder/iron-donkey-dictation/releases/latest).
 2. Download the right APK for your phone:
-   - **`iron-donkey-dictation-1.1-arm64-v8a.apk`** (64-bit): **pick this one.** It's right for almost every phone from the last several years.
-   - **`iron-donkey-dictation-1.1-armeabi-v7a.apk`** (32-bit): only for older or budget phones with a 32-bit processor. If the 64-bit one won't install, try this one.
+   - **`iron-donkey-dictation-1.2-arm64-v8a.apk`** (64-bit): **pick this one.** It's right for almost every phone from the last several years.
+   - **`iron-donkey-dictation-1.2-armeabi-v7a.apk`** (32-bit): only for older or budget phones with a 32-bit processor.
+   - **`iron-donkey-dictation-1.2-universal.apk`**: works on every phone, tablet and emulator (64-bit, 32-bit and x86), but it's a much bigger download. Use it if you're not sure which one you need.
 3. Open the APK on your phone. Android will probably ask you to allow installs from unknown sources. Play Protect may warn you because the app isn't from the Play Store and is signed with a debug key.
 
-   Or with ADB: `adb install iron-donkey-dictation-1.1-arm64-v8a.apk`
+   Or with ADB: `adb install iron-donkey-dictation-1.2-arm64-v8a.apk`
+
+   Already have 1.1? 1.2 installs over it as an update and keeps your downloaded models and settings.
 4. Open the app, pick a model, and wait for the download (Wi-Fi recommended: models are 44 MB to about 1 GB).
 
 Requires **Android 7.0 (API 24) or newer**.
 
-Version 1.1 hasn't been tested on a real phone yet, so you're the QA department. If voice typing in the keyboard shows a microphone error on your phone, please open an issue.
+Version 1.2 hasn't been tested on a real phone yet, so you're the QA department. If voice typing in the keyboard shows a microphone error on your phone, please open an issue.
 
 ---
 
@@ -187,7 +241,7 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 ./gradlew assembleDebug
 ```
 
-This produces one APK per chip type in `build/outputs/apk/debug/`. The optional `finalize.sh` re-aligns and signs them with your own keystore (it reads the keystore path, alias and passwords from environment variables; see the top of the script). No keys are stored in this repo.
+This produces one APK per chip type plus a universal APK in `build/outputs/apk/debug/`. The optional `finalize.sh` re-aligns and signs them with your own keystore (it reads the keystore path, alias and passwords from environment variables; see the top of the script). No keys are stored in this repo.
 
 ---
 
@@ -210,6 +264,8 @@ The app's own code (`com.irondonkey.dictation`) is released under the **[Apache 
   - **nlohmann/json**, Copyright (c) Niels Lohmann. MIT License.
   - **Eigen**. Mozilla Public License 2.0 (source: https://gitlab.com/libeigen/eigen).
   - **hclust-cpp**. BSD-style license.
+- **Google ML Kit Translation and Language ID** (`com.google.mlkit:translate`, `com.google.mlkit:language-id`), for offline translation. Free to use under the [ML Kit Terms of Service](https://developers.google.com/ml-kit/terms); the translation models are downloaded by ML Kit on the phone.
+- **Google Cloud Translation API**, only when you choose the online translator, with your own API key.
 - **Silero VAD** (`silero_vad.onnx`) by the Silero Team, used to find pauses in speech. MIT License. It ships inside the app.
 
 ### Speech models
