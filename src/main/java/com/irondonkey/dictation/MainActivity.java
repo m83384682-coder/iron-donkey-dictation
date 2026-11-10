@@ -64,6 +64,15 @@ public class MainActivity extends Activity implements Hub.Listener, EngineManage
         }
         build();
         handleIntent(getIntent());
+        if (b == null && ErrorLog.takeCrashFlag(this)) {
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("The app closed unexpectedly")
+                    .setMessage("Sorry about that. Would you like to report it? The report shows your phone model, the app version "
+                            + "and the error, never your transcripts, and you can read it before sending.")
+                    .setPositiveButton("Report it", (d, w) -> Report.show(this))
+                    .setNegativeButton("Not now", null)
+                    .show();
+        }
     }
 
     private void build() {

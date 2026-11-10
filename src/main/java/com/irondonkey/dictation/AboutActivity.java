@@ -29,5 +29,17 @@ public class AboutActivity extends Activity {
         col.addView(Ui.body(this, "Online translation, when you choose it, uses Google Cloud Translation with your own API key."));
 
         Ui.add(col, Ui.button(this, "Read the license texts", v -> startActivity(new Intent(this, LicenseActivity.class))), 16);
+
+        col.addView(Ui.subheading(this, "Problems and ideas"));
+        col.addView(Ui.body(this, "The app has been tested on a real phone, but errors may still happen sometimes. "
+                + "If something goes wrong, please report it on GitHub so it can be fixed."));
+        Ui.add(col, Ui.button(this, "Report a problem", v -> Report.show(this)), 4);
+        Ui.add(col, Ui.button(this, "Open the project page on GitHub", v -> Report.open(this, ReportText.REPO)), 4);
+        Ui.add(col, Ui.button(this, "Clear the error log", v -> {
+            ErrorLog.clear(this);
+            Hub.announce(this, "Error log cleared");
+            v.setContentDescription("Error log cleared");
+            ((android.widget.Button) v).setText("Error log cleared");
+        }), 4);
     }
 }

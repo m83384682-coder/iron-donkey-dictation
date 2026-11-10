@@ -6,6 +6,8 @@ You talk, your phone writes it down. After you download a speech model, everythi
 
 [**Download the latest APK**](https://github.com/m83384682-coder/iron-donkey-dictation/releases/latest) · Android 7.0 or newer
 
+> **Tested on a real device.** The author has tested the app on a real Android phone. Even so, some errors may sometimes happen. If something goes wrong, please report it in [GitHub Issues](https://github.com/m83384682-coder/iron-donkey-dictation/issues), with what you did, what happened, your phone model and your Android version. The app's **About → Report a problem** button fills most of that in for you.
+
 ---
 
 ## Why is the name so bad?
@@ -44,6 +46,7 @@ On the bright side, "Iron Donkey Dictation" was not taken.
 - **Push to talk in the keyboard (new in 1.2).** Hold the voice typing button to talk, let go to type.
 - **A better keyboard (new in 1.2).** Accents and extra symbols on long press, cursor arrows, Select all, Copy and Paste, double space for a period, and more TalkBack feedback.
 - **Handy extras (new in 1.2).** Spoken commands ("new line", "comma"), your own word replacements, stop by itself after silence, a word counter and text size.
+- **Fixes and reporting (new in 1.3).** Offline translator downloads work again, errors are explained in plain words, a Report a problem button fills in a GitHub issue for you, and History can be searched, shared and saved as a text file.
 - **Fully offline after setup**, unless you pick the online translator.
 
 ---
@@ -155,13 +158,25 @@ Whisper Turbo was not trained to translate, so it uses the offline translator. W
 - **Text size** for the text box: small, normal, large or extra large.
 - **Link cleanup understands Whisper's punctuation.** Whisper likes to write "https colon slash slash www. My website dot com", with a period and a capital after "www". That now becomes `https://www.mywebsite.com`, and so do "https: www...", "https/www..." and addresses said letter by letter ("H T T P S colon slash slash W W W dot ..."). A period the model writes after ".com" stays as the end of the sentence.
 
-### 12. Urdu (experimental)
+### 12. New in 1.3
+
+- **Offline translator downloads fixed.** In 1.2, downloading a translation language could fail with `Download failed: Attempt to invoke virtual method '...RemoteModelManager.download(...)' on a null object reference`. The cause: the code shrinker (R8) removed the constructors of ML Kit's component registrars, so ML Kit started with nothing registered and `RemoteModelManager.getInstance()` returned null. The registrars are now kept whole, the app also starts ML Kit itself when it opens, and if a download still fails you get a plain message (no internet, Wi-Fi only, not enough space, timed out...) instead of a Java exception.
+- **Checks before downloading:** with no internet, or on mobile data with "Download translation files on mobile data too" turned off, the app says so right away instead of waiting.
+- **Download any language ahead of time:** Translation files now has "Download another language", and multi-language downloads say which one is going ("2 of 2").
+- **Report a problem** (in About, and offered after an error or a crash): opens a new GitHub issue with the app version, phone model, Android version, chosen model and the last few errors filled in. Transcripts are never included, and nothing is sent until you press Submit on GitHub yourself. You can also copy the report instead.
+- **Error log:** the app keeps the last 20 error messages (never transcripts) on the phone for reports. You can clear it in About.
+- **Crash notice:** if the app closed unexpectedly, the next time you open it, it offers to report it.
+- **History search:** type words to find old transcripts (it matches the text, the model and the source).
+- **History export:** save all your transcripts as one text file.
+- **History share:** each transcript has a Share button next to Copy and Delete.
+
+### 13. Urdu (experimental)
 
 Urdu works with the Whisper models, but it's rough. In tests on 20 Urdu recordings, Whisper Small got about 38% of letters wrong and Whisper Turbo about 49%, so **Whisper Small is the better pick for Urdu**. When Urdu is selected, the app uses shorter 10-second pieces plus the loop filter, and shows a warning to expect fixing the text by hand.
 
 ### Other settings
 
-- History of your transcriptions, with the date and model (can be turned off)
+- History of your transcriptions, with the date and model, search, share and export (can be turned off)
 - Number of processor cores to use
 - Keep the model loaded between recordings
 - Which microphone to use: phone, wired or Bluetooth
@@ -210,25 +225,31 @@ Run the same way, with the app's own code and sherpa-onnx 2.0.1, on new spoken t
 - **Offline and online translators:** these use Google ML Kit and Google Cloud, which only run on a phone, so they weren't run on the computer. The part of the app that keeps links, emails and line breaks away from the translator was tested.
 - 73 small checks of the text pipeline passed, including the Whisper link fix, normal sentences that must stay as they were ("the dot com era", "It was late. My website was down."), stutters left alone, spoken commands, replacements, and which translator each model uses.
 
+### Tests for 1.3
+
+- 95 small checks of the app's own text code passed on the computer: the 73 from 1.2 plus 22 new ones for the translator error messages (including the exact 1.2 crash message), problem reports and history search and export.
+- The final APK was inspected: ML Kit's start-up provider and all four component registrars are in the manifest, and the registrar classes now keep their constructors (in 1.2's APK they had none).
+- The translator download itself needs a phone, so it couldn't be run on the computer.
+
 ---
 
 ## Install
 
 1. Go to the [latest release](https://github.com/m83384682-coder/iron-donkey-dictation/releases/latest).
 2. Download the right APK for your phone:
-   - **`iron-donkey-dictation-1.2-arm64-v8a.apk`** (64-bit): **pick this one.** It's right for almost every phone from the last several years.
-   - **`iron-donkey-dictation-1.2-armeabi-v7a.apk`** (32-bit): only for older or budget phones with a 32-bit processor.
-   - **`iron-donkey-dictation-1.2-universal.apk`**: works on every phone, tablet and emulator (64-bit, 32-bit and x86), but it's a much bigger download. Use it if you're not sure which one you need.
+   - **`iron-donkey-dictation-1.3-arm64-v8a.apk`** (64-bit): **pick this one.** It's right for almost every phone from the last several years.
+   - **`iron-donkey-dictation-1.3-armeabi-v7a.apk`** (32-bit): only for older or budget phones with a 32-bit processor.
+   - **`iron-donkey-dictation-1.3-universal.apk`**: works on every phone, tablet and emulator (64-bit, 32-bit and x86), but it's a much bigger download. Use it if you're not sure which one you need.
 3. Open the APK on your phone. Android will probably ask you to allow installs from unknown sources. Play Protect may warn you because the app isn't from the Play Store and is signed with a debug key.
 
-   Or with ADB: `adb install iron-donkey-dictation-1.2-arm64-v8a.apk`
+   Or with ADB: `adb install iron-donkey-dictation-1.3-arm64-v8a.apk`
 
-   Already have 1.1? 1.2 installs over it as an update and keeps your downloaded models and settings.
+   Already have 1.1 or 1.2? 1.3 installs over it as an update and keeps your downloaded models and settings.
 4. Open the app, pick a model, and wait for the download (Wi-Fi recommended: models are 44 MB to about 1 GB).
 
 Requires **Android 7.0 (API 24) or newer**.
 
-Version 1.2 hasn't been tested on a real phone yet, so you're the QA department. If voice typing in the keyboard shows a microphone error on your phone, please open an issue.
+The app has been tested on a real device by the author, but some errors may sometimes happen. Please report them in [GitHub Issues](https://github.com/m83384682-coder/iron-donkey-dictation/issues), or with **About → Report a problem** in the app.
 
 ---
 

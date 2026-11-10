@@ -3,8 +3,10 @@ package com.irondonkey.dictation;
 import android.content.Context;
 
 import com.google.android.gms.tasks.Tasks;
+import com.google.mlkit.common.MlKitException;
 import com.google.mlkit.common.model.DownloadConditions;
 import com.google.mlkit.common.model.RemoteModelManager;
+import com.google.mlkit.common.sdkinternal.MlKitContext;
 import com.google.mlkit.nl.languageid.LanguageIdentification;
 import com.google.mlkit.nl.languageid.LanguageIdentifier;
 import com.google.mlkit.nl.translate.TranslateLanguage;
@@ -24,6 +26,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -35,6 +38,73 @@ public final class Translate {
     private Translate() {}
 
     public interface Status { void say(String s); }
+
+    private static volatile Context appContext;
+
+    /**
+     * Sets up ML Kit. Its own start-up provider normally does this before the app starts; calling it again does
+     * nothing, and it covers phones or processes where the provider didn't run.
+     */
+    public static void init(Context c) {
+        Context app = c.getApplicationContext();
+        appContext = app;
+        try {
+            MlKitContext.initializeIfNeeded(app);
+        } catch (Throwable t) {
+            ErrorLog.record(app, "ML Kit start", t);
+        }
+    }
+
+    /** Thrown with a sentence for the user when the offline translator can't do something. */
+    public static final class TranslatorException extends Exception {
+        public TranslatorException(String message, Throwable cause) { super(message, cause); }
+    }
+
+    /** ML Kit's model manager, or a clear error instead of a null that crashes later. */
+    private static RemoteModelManager manager() throws TranslatorException {
+        if (appContext != null) init(appContext);
+        RemoteModelManager m = null;
+        Throwable cause = null;
+        try {
+            m = RemoteModelManager.getInstance();
+        } catch (RuntimeException e) {
+            cause = e;
+        }
+        if (m == null) {
+            if (appContext != null) ErrorLog.record(appContext, "Offline translator",
+                    "RemoteModelManager.getInstance() gave " + (cause == null ? "null" : cause.toString()));
+            throw new TranslatorException(TranslateErrors.friendly(TranslateErrors.NOT_STARTED, null, null), cause);
+        }
+        return m;
+    }
+
+    /** A sentence for the user about any offline translator error, also recorded for problem reports. */
+    public static String explain(Context c, String where, Throwable e) {
+        Throwable t = e;
+        while ((t instanceof ExecutionException || t instanceof RuntimeException && !(t instanceof NullPointerException))
+                && t.getCause() != null && t.getCause() != t) t = t.getCause();
+        if (t instanceof TranslatorException) return t.getMessage();
+        String kind = null;
+        if (t instanceof MlKitException) {
+            switch (((MlKitException) t).getErrorCode()) {
+                case MlKitException.NETWORK_ISSUE: kind = TranslateErrors.NETWORK; break;
+                case MlKitException.NOT_ENOUGH_SPACE: kind = TranslateErrors.NO_SPACE; break;
+                case MlKitException.DEADLINE_EXCEEDED: kind = TranslateErrors.TIMEOUT; break;
+                case MlKitException.CANCELLED: kind = TranslateErrors.CANCELLED; break;
+                default: kind = null;
+            }
+        }
+        if (c != null) ErrorLog.record(c, where, t);
+        return TranslateErrors.friendly(kind, t.getClass().getName(), t.getMessage());
+    }
+
+    /** Fails early, with a clear reason, when a download can't work right now. */
+    private static void checkNetwork(Context c, Prefs prefs) throws TranslatorException {
+        String state = Net.state(c);
+        if (Net.NONE.equals(state)) throw new TranslatorException(TranslateErrors.friendly(TranslateErrors.OFFLINE, null, null), null);
+        if (!prefs.translateMobileData() && Net.METERED.equals(state))
+            throw new TranslatorException(TranslateErrors.friendly(TranslateErrors.WAITING_WIFI, null, null), null);
+    }
 
     /** What will happen for the current model, or null when translation is off. */
     public static final class Plan {
@@ -95,7 +165,9 @@ public final class Translate {
             if (prefs.keepOriginal() && !out.equals(text)) out = out + "\n\nOriginal: " + text;
             return out;
         } catch (Exception e) {
-            String why = e.getMessage() == null ? e.toString() : e.getMessage();
+            String why = Translation.ENGINE_ONLINE.equals(pl.engine)
+                    ? (e.getMessage() == null ? e.toString() : e.getMessage())
+                    : explain(c, "Offline translation", e);
             status.say("Translation didn't work, so you got the original text. " + why);
             return text;
         }
@@ -115,8 +187,12 @@ public final class Translate {
         if (s == null) throw new Exception("The offline translator doesn't know " + Translation.targetName(src) + ". Try the online translator.");
         if (t == null) throw new Exception("The offline translator doesn't know " + Translation.targetName(to) + ".");
         if (s.equals(t)) return text;
-        if (!isDownloaded(s) || !isDownloaded(t)) status.say("Getting the " + Translation.targetName(src) + " and "
-                + Translation.targetName(to) + " translation files, about 30 MB each, once.");
+        if (!isDownloaded(s) || !isDownloaded(t)) {
+            checkNetwork(c, prefs);
+            status.say("Getting the " + Translation.targetName(src) + " and "
+                    + Translation.targetName(to) + " translation files, about 30 MB each, once.");
+        }
+        if (appContext == null) init(c);
         Translator tr = com.google.mlkit.nl.translate.Translation.getClient(
                 new TranslatorOptions.Builder().setSourceLanguage(s).setTargetLanguage(t).build());
         try {
@@ -136,6 +212,7 @@ public final class Translate {
     /** The spoken language from the text itself, or null when it can't tell. */
     private static String detect(String text) throws Exception {
         LanguageIdentifier id = LanguageIdentification.getClient();
+        if (id == null) throw new TranslatorException(TranslateErrors.friendly(TranslateErrors.NOT_STARTED, null, null), null);
         try {
             String code = Tasks.await(id.identifyLanguage(text), 1, TimeUnit.MINUTES);
             if (code == null || code.equals("und")) return null;
@@ -150,7 +227,7 @@ public final class Translate {
         if (mlkitCode == null) return false;
         if (mlkitCode.equals(TranslateLanguage.ENGLISH)) return true; // English always ships with ML Kit
         try {
-            return Tasks.await(RemoteModelManager.getInstance().isModelDownloaded(
+            return Tasks.await(manager().isModelDownloaded(
                     new TranslateRemoteModel.Builder(mlkitCode).build()), 30, TimeUnit.SECONDS);
         } catch (Exception e) {
             return false;
@@ -160,22 +237,26 @@ public final class Translate {
     /** Downloads one offline language. Blocking. */
     public static void download(Context c, String iso) throws Exception {
         String code = TranslateLanguage.fromLanguageTag(iso);
-        if (code == null) throw new Exception("The offline translator doesn't know " + Translation.targetName(iso) + ".");
-        Tasks.await(RemoteModelManager.getInstance().download(new TranslateRemoteModel.Builder(code).build(),
-                conditions(new Prefs(c))), 10, TimeUnit.MINUTES);
+        if (code == null) throw new TranslatorException("The offline translator doesn't know " + Translation.targetName(iso) + ".", null);
+        if (code.equals(TranslateLanguage.ENGLISH)) return; // built in
+        init(c);
+        Prefs prefs = new Prefs(c);
+        if (isDownloaded(code)) return;
+        checkNetwork(c, prefs);
+        Tasks.await(manager().download(new TranslateRemoteModel.Builder(code).build(), conditions(prefs)), 10, TimeUnit.MINUTES);
     }
 
     /** The offline languages on the phone, as ISO codes. Blocking. */
     public static List<String> downloaded() throws Exception {
-        Set<TranslateRemoteModel> s = Tasks.await(RemoteModelManager.getInstance()
+        Set<TranslateRemoteModel> s = Tasks.await(manager()
                 .getDownloadedModels(TranslateRemoteModel.class), 30, TimeUnit.SECONDS);
         List<String> out = new ArrayList<>();
-        for (TranslateRemoteModel m : s) out.add(m.getLanguage());
+        if (s != null) for (TranslateRemoteModel m : s) out.add(m.getLanguage());
         return out;
     }
 
     public static void delete(String iso) throws Exception {
-        Tasks.await(RemoteModelManager.getInstance().deleteDownloadedModel(
+        Tasks.await(manager().deleteDownloadedModel(
                 new TranslateRemoteModel.Builder(iso).build()), 30, TimeUnit.SECONDS);
     }
 

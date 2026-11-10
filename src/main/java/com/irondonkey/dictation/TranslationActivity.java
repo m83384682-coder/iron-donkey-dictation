@@ -172,52 +172,119 @@ public class TranslationActivity extends Activity {
                 .show();
     }
 
+    private volatile boolean busy;
+
     private void downloadNow(Translate.Plan plan) {
         List<String> langs = new ArrayList<>();
         if (plan.from != null && !plan.from.isEmpty()) langs.add(plan.from);
         langs.add(plan.to);
+        download(langs, null);
+    }
+
+    /** Downloads the languages one at a time, saying which one is going, and explains any failure. */
+    private void download(List<String> langs, Runnable after) {
+        if (busy) {
+            say("A download is already going. Please wait for it to finish.");
+            return;
+        }
+        busy = true;
         say("Downloading " + names(langs) + "...");
         new Thread(() -> {
             try {
-                for (String l : langs) if (!l.equals("en")) Translate.download(this, l);
-                main.post(() -> say("Ready. " + names(langs) + " translation works offline now."));
+                int i = 0;
+                for (String l : langs) {
+                    i++;
+                    if (l.equals("en")) continue;
+                    String step = langs.size() > 1 ? " (" + i + " of " + langs.size() + ")" : "";
+                    String name = Translation.targetName(l);
+                    main.post(() -> say("Downloading " + name + step + ", about 30 MB..."));
+                    Translate.download(this, l);
+                }
+                main.post(() -> {
+                    say("Ready. " + names(langs) + " translation works offline now.");
+                    Hub.announce(this, "Download finished");
+                    if (after != null) after.run();
+                });
             } catch (Exception e) {
-                main.post(() -> say("Download failed: " + e.getMessage()));
+                String why = Translate.explain(this, "Translation download", e);
+                main.post(() -> failed("Download failed", why));
+            } finally {
+                busy = false;
             }
         }, "translate-dl").start();
     }
 
+    /** Shows what went wrong in words, with a way to report it. */
+    private void failed(String title, String why) {
+        say(title + ". " + why);
+        if (isFinishing()) return;
+        new AlertDialog.Builder(this).setTitle(title).setMessage(why)
+                .setPositiveButton("OK", null)
+                .setNeutralButton("Report a problem", (d, w) -> Report.show(this))
+                .show();
+    }
+
     private void manage() {
+        say("Checking which translation files are on this phone...");
         new Thread(() -> {
             try {
                 List<String> have = Translate.downloaded();
                 have.remove("en");
-                main.post(() -> showManage(have));
+                main.post(() -> { say(have.isEmpty() ? "No translation files yet, apart from English, which is built in."
+                        : have.size() + (have.size() == 1 ? " language" : " languages") + " on this phone, plus English."); showManage(have); });
             } catch (Exception e) {
-                main.post(() -> say("Couldn't list the files: " + e.getMessage()));
+                String why = Translate.explain(this, "List translation files", e);
+                main.post(() -> failed("Couldn't list the files", why));
             }
         }).start();
     }
 
     private void showManage(List<String> have) {
-        if (have.isEmpty()) {
-            new AlertDialog.Builder(this).setTitle("Translation files")
-                    .setMessage("None downloaded yet, apart from English, which is built in.")
-                    .setPositiveButton("OK", null).show();
-            return;
+        if (isFinishing()) return;
+        List<String> items = new ArrayList<>();
+        items.add("Download another language");
+        for (String c : have) items.add("Delete " + Translation.targetName(c));
+        new AlertDialog.Builder(this)
+                .setTitle(have.isEmpty() ? "Translation files: only English, which is built in" : "Translation files on this phone")
+                .setItems(items.toArray(new String[0]), (d, i) -> {
+                    if (i == 0) pickLanguage(have);
+                    else deleteLanguage(have.get(i - 1));
+                })
+                .setNegativeButton("Close", null).show();
+    }
+
+    /** Every offline language that isn't on the phone yet, to download one ahead of time. */
+    private void pickLanguage(List<String> have) {
+        List<String> codes = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        for (String[] t : Translation.TARGETS) {
+            if (t[0].equals("en") || have.contains(t[0])) continue;
+            codes.add(t[0]);
+            names.add(t[1]);
         }
-        String[] items = new String[have.size()];
-        for (int i = 0; i < items.length; i++) items[i] = "Delete " + Translation.targetName(have.get(i));
-        new AlertDialog.Builder(this).setTitle("Translation files on this phone")
-                .setItems(items, (d, i) -> new Thread(() -> {
+        new AlertDialog.Builder(this).setTitle("Download a language (about 30 MB)")
+                .setItems(names.toArray(new String[0]), (d, i) -> {
+                    List<String> one = new ArrayList<>();
+                    one.add(codes.get(i));
+                    download(one, null);
+                })
+                .setNegativeButton("Cancel", null).show();
+    }
+
+    private void deleteLanguage(String code) {
+        String name = Translation.targetName(code);
+        new AlertDialog.Builder(this).setTitle("Delete " + name + "?")
+                .setMessage("You can download it again later.")
+                .setPositiveButton("Delete", (d, w) -> new Thread(() -> {
                     try {
-                        Translate.delete(have.get(i));
-                        main.post(() -> say(Translation.targetName(have.get(i)) + " deleted"));
+                        Translate.delete(code);
+                        main.post(() -> say(name + " deleted"));
                     } catch (Exception e) {
-                        main.post(() -> say("Couldn't delete: " + e.getMessage()));
+                        String why = Translate.explain(this, "Delete translation file", e);
+                        main.post(() -> failed("Couldn't delete " + name, why));
                     }
                 }).start())
-                .setNegativeButton("Close", null).show();
+                .setNegativeButton("Keep", null).show();
     }
 
     private static String names(List<String> codes) {
